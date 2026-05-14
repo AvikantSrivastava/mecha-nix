@@ -9,10 +9,8 @@ description = "Stateless client/server remote development environments powered b
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
-authors = [
-  { name = "Avikant" }
-]
-dependencies = []
+authors = [{ name = "Avikant Srivastava", email = "me@avikant.com" }]
+dependencies = ["rich-click>=1.9.4"]
 
 [project.scripts]
 mnix = "mnix.client.cli:main"
