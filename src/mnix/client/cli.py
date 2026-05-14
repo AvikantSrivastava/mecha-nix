@@ -1,8 +1,12 @@
 from __future__ import annotations
 
-import argparse
 import sys
 from pathlib import Path
+from typing import Callable
+
+import rich_click as click
+from rich.console import Console
+from rich.table import Table
 
 from mnix.client.config import ClientConfig
 from mnix.client.db import Database
@@ -10,58 +14,19 @@ from mnix.client.repository import ClientRepository
 from mnix.client.service import ClientService
 from mnix.client.transport import SSHTransport
 
-
-def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="mnix")
-    subparsers = parser.add_subparsers(dest="command", required=True)
-
-    subparsers.add_parser("ls", help="List projects")
-
-    select_parser = subparsers.add_parser("select", help="Select a project")
-    select_parser.add_argument("name", nargs="?", help="Project name")
-
-    new_parser = subparsers.add_parser("new", help="Launch a new project")
-    new_parser.add_argument("name", help="Project name")
-    new_parser.add_argument(
-        "-f",
-        "--flake",
-        default="./flake.nix",
-        help="Path to flake.nix (default: ./flake.nix)",
-    )
-    new_parser.add_argument("--server", help="Server name")
-
-    rebuild_parser = subparsers.add_parser("rebuild-switch", help="Rebuild the selected project")
-    rebuild_parser.add_argument(
-        "flake",
-        nargs="?",
-        default=None,
-        help="Path to flake.nix (default: selected project's flake)",
-    )
-    rebuild_parser.add_argument("--project", help="Project name")
-
-    shell_parser = subparsers.add_parser("shell", help="Open a shell inside the remote container")
-    shell_parser.add_argument("--project", help="Project name")
-
-    exec_parser = subparsers.add_parser("exec", help="Run a command inside the remote container")
-    exec_parser.add_argument("--project", help="Project name")
-    exec_parser.add_argument("exec_command", nargs=argparse.REMAINDER, help="Command to run")
-
-    server_parser = subparsers.add_parser("server", help="Manage servers")
-    server_subparsers = server_parser.add_subparsers(dest="server_command", required=True)
-    server_subparsers.add_parser("ls", help="List servers")
-
-    add_parser = server_subparsers.add_parser("add", help="Add or update a server")
-    add_parser.add_argument("endpoint", help="SSH endpoint, e.g. ssh://user@example.com")
-    add_parser.add_argument("name", help="Server name")
-
-    remove_parser = server_subparsers.add_parser("rm", help="Remove a server")
-    remove_parser.add_argument("name", help="Server name")
-
-    return parser
+HELP_SETTINGS = {"help_option_names": ["-h", "--help"]}
+EXEC_SETTINGS = {
+    **HELP_SETTINGS,
+    "ignore_unknown_options": True,
+}
 
 
 def _normalize_endpoint(endpoint: str) -> str:
     return endpoint.removeprefix("ssh://")
+
+
+def _console(*, stderr: bool = False) -> Console:
+    return Console(stderr=stderr)
 
 
 def _build_service() -> ClientService:
@@ -79,85 +44,203 @@ def _interactive_project_choice(service: ClientService) -> str:
     if len(projects) == 1:
         return projects[0].name
 
+    table = Table(title="Projects")
+    table.add_column("#", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Name", style="bold")
+    table.add_column("Server", style="magenta")
+
     for index, project in enumerate(projects, start=1):
-        print(f"{index}. {project.name} ({project.server_name})")
+        table.add_row(str(index), project.name, project.server_name)
 
-    choice = input("Select project number: ").strip()
-    if not choice.isdigit():
-        raise ValueError("selection must be a number")
+    _console().print(table)
 
-    selected_index = int(choice) - 1
-    if selected_index < 0 or selected_index >= len(projects):
-        raise ValueError("selection out of range")
-    return projects[selected_index].name
+    choice = click.prompt(
+        "Select project number",
+        type=click.IntRange(1, len(projects)),
+        show_choices=False,
+    )
+    return projects[choice - 1].name
+
+
+def _run_client(action: Callable[[ClientService], int | None]) -> int:
+    try:
+        service = _build_service()
+        result = action(service)
+        return 0 if result is None else result
+    except (FileNotFoundError, ValueError, RuntimeError) as error:
+        raise click.ClickException(str(error)) from error
+
+
+def _render_projects(projects: list, selected: str | None) -> None:
+    table = Table(title="Projects")
+    table.add_column("Name", style="bold")
+    table.add_column("Server", style="magenta")
+    table.add_column("Container", style="cyan")
+    table.add_column("Workspace", overflow="fold")
+
+    for project in projects:
+        name = (
+            f"[bold green]* {project.name}[/bold green]"
+            if project.name == selected
+            else project.name
+        )
+        table.add_row(
+            name,
+            project.server_name,
+            project.container_name,
+            project.remote_workspace,
+        )
+
+    _console().print(table)
+
+
+def _render_servers(servers: list) -> None:
+    table = Table(title="Servers")
+    table.add_column("Name", style="bold")
+    table.add_column("Endpoint", style="cyan")
+
+    for item in servers:
+        table.add_row(item.name, item.endpoint)
+
+    _console().print(table)
+
+
+@click.group(
+    context_settings=HELP_SETTINGS,
+    help="Manage remote development projects.",
+    no_args_is_help=True,
+)
+def cli() -> None:
+    pass
+
+
+@cli.command("ls")
+def list_projects() -> int:
+    def action(service: ClientService) -> int:
+        selected = service.repository.get_selected_project_name()
+        _render_projects(service.list_projects(), selected)
+        return 0
+
+    return _run_client(action)
+
+
+@cli.command()
+@click.argument("name", required=False)
+def select(name: str | None) -> int:
+    def action(service: ClientService) -> int:
+        selection = name if name is not None else _interactive_project_choice(service)
+        click.echo(service.select_project(selection))
+        return 0
+
+    return _run_client(action)
+
+
+@cli.command()
+@click.argument("name")
+@click.option(
+    "--flake",
+    "-f",
+    default="./flake.nix",
+    show_default=True,
+    help="Path to flake.nix.",
+)
+@click.option("--server", help="Server name.")
+def new(name: str, flake: str, server: str | None) -> int:
+    def action(service: ClientService) -> int:
+        result = service.new_project(
+            name=name,
+            flake_path=Path(flake),
+            server_name=server,
+        )
+        click.echo(result.message)
+        if result.stdout.strip():
+            click.echo(result.stdout.strip())
+        if result.stderr.strip():
+            click.echo(result.stderr.strip(), err=True)
+        return 0
+
+    return _run_client(action)
+
+
+@cli.command("rebuild-switch")
+@click.argument("flake", required=False)
+@click.option("--project", help="Project name.")
+def rebuild_switch(flake: str | None, project: str | None) -> int:
+    def action(service: ClientService) -> int:
+        flake_path = None if flake is None else Path(flake)
+        result = service.rebuild_switch(flake_path=flake_path, project_name=project)
+        click.echo(result.message)
+        if result.stdout.strip():
+            click.echo(result.stdout.strip())
+        if result.stderr.strip():
+            click.echo(result.stderr.strip(), err=True)
+        return 0
+
+    return _run_client(action)
+
+
+@cli.command()
+@click.option("--project", help="Project name.")
+def shell(project: str | None) -> int:
+    return _run_client(lambda service: service.shell(project_name=project))
+
+
+@cli.command(context_settings=EXEC_SETTINGS)
+@click.option("--project", help="Project name.")
+@click.argument("exec_command", nargs=-1, type=click.UNPROCESSED)
+def exec(project: str | None, exec_command: tuple[str, ...]) -> int:
+    return _run_client(
+        lambda service: service.exec(command=list(exec_command), project_name=project)
+    )
+
+
+@cli.group(
+    context_settings=HELP_SETTINGS,
+    help="Manage configured servers.",
+    no_args_is_help=True,
+)
+def server() -> None:
+    pass
+
+
+@server.command("ls")
+def list_servers() -> int:
+    def action(service: ClientService) -> int:
+        _render_servers(service.list_servers())
+        return 0
+
+    return _run_client(action)
+
+
+@server.command("add")
+@click.argument("endpoint")
+@click.argument("name")
+def add_server(endpoint: str, name: str) -> int:
+    return _run_client(
+        lambda service: click.echo(
+            service.add_server(endpoint=_normalize_endpoint(endpoint), name=name)
+        )
+    )
+
+
+@server.command("rm")
+@click.argument("name")
+def remove_server(name: str) -> int:
+    return _run_client(lambda service: click.echo(service.remove_server(name)))
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    service = _build_service()
-
     try:
-        if args.command == "ls":
-            selected = service.repository.get_selected_project_name()
-            for project in service.list_projects():
-                marker = "*" if project.name == selected else " "
-                print(
-                    f"{marker} {project.name}\tserver={project.server_name}\tcontainer={project.container_name}\tworkspace={project.remote_workspace}"
-                )
-            return 0
-
-        if args.command == "select":
-            selection = args.name if args.name is not None else _interactive_project_choice(service)
-            print(service.select_project(selection))
-            return 0
-
-        if args.command == "new":
-            result = service.new_project(
-                name=args.name,
-                flake_path=Path(args.flake),
-                server_name=args.server,
-            )
-            print(result.message)
-            if result.stdout.strip():
-                print(result.stdout.strip())
-            if result.stderr.strip():
-                print(result.stderr.strip(), file=sys.stderr)
-            return 0
-
-        if args.command == "rebuild-switch":
-            flake = None if args.flake is None else Path(args.flake)
-            result = service.rebuild_switch(flake_path=flake, project_name=args.project)
-            print(result.message)
-            if result.stdout.strip():
-                print(result.stdout.strip())
-            if result.stderr.strip():
-                print(result.stderr.strip(), file=sys.stderr)
-            return 0
-
-        if args.command == "shell":
-            return service.shell(project_name=args.project)
-
-        if args.command == "exec":
-            return service.exec(command=args.exec_command, project_name=args.project)
-
-        if args.command == "server":
-            if args.server_command == "ls":
-                for server in service.list_servers():
-                    print(f"{server.name}\t{server.endpoint}")
-                return 0
-            if args.server_command == "add":
-                print(service.add_server(endpoint=_normalize_endpoint(args.endpoint), name=args.name))
-                return 0
-            if args.server_command == "rm":
-                print(service.remove_server(args.name))
-                return 0
-
-        parser.error("unknown command")
-    except (FileNotFoundError, ValueError, RuntimeError) as error:
-        print(f"error: {error}", file=sys.stderr)
+        result = cli.main(args=argv, prog_name="mnix", standalone_mode=False)
+        return 0 if result is None else result
+    except click.Abort:
+        click.echo("Aborted!", err=True)
         return 1
-    return 0
+    except click.ClickException as error:
+        error.show(file=sys.stderr)
+        return error.exit_code
+    except click.exceptions.Exit as error:
+        return error.exit_code
 
 
 if __name__ == "__main__":
