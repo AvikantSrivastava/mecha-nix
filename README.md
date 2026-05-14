@@ -2,6 +2,8 @@
 
 `mnix` is a lightweight Python implementation of a remote development workflow built around Nix flakes, SSH, and Podman.
 
+The repository includes a root `flake.nix`, so `mnix new` can use the default `./flake.nix` and `nix develop` works directly from the project root.
+
 ## Commands
 
 ### Client
