@@ -11,6 +11,8 @@ mnix ls
 mnix select [project-name]
 mnix new [-f path/to/flake.nix] [--server server-name] project-name
 mnix rebuild-switch [path/to/flake.nix] [--project project-name]
+mnix shell [--project project-name]
+mnix exec [--project project-name] -- command [args...]
 mnix server ls
 mnix server add ssh://user@example.com server-name
 mnix server rm server-name
@@ -23,6 +25,8 @@ The client talks to the server by invoking `mnix-server` over SSH. The server CL
 ```bash
 mnix-server project launch --name project-name --flake flake.nix
 mnix-server project rebuild-switch --name project-name --flake flake.nix
+mnix-server project shell --name project-name --flake flake.nix
+mnix-server project exec --name project-name --flake flake.nix -- command [args...]
 ```
 
 ## Configuration
@@ -36,6 +40,7 @@ Default path: `~/.config/mnix/client.toml`
 ```toml
 ssh_binary = "ssh"
 remote_binary = "mnix-server"
+remote_podman_binary = "podman"
 default_server = "my-server"
 database_path = "~/.local/state/mnix/client.db"
 ```
@@ -48,7 +53,7 @@ Default path: `~/.config/mnix/server.toml`
 podman_binary = "podman"
 base_image = "docker.io/nixos/nix:latest"
 workspace_root = "/tmp/mnix/workspaces"
-warmup_command = "nix develop -c true"
+warmup_command = "nix --extra-experimental-features 'nix-command flakes' develop -c true"
 container_command = "sleep infinity"
 ```
 

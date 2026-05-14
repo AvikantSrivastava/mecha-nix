@@ -19,10 +19,15 @@ def build_parser() -> argparse.ArgumentParser:
     project_parser = subparsers.add_parser("project", help="Project lifecycle commands")
     project_subparsers = project_parser.add_subparsers(dest="project_command", required=True)
 
-    for command_name in ("launch", "rebuild-switch"):
+    for command_name in ("launch", "rebuild-switch", "shell"):
         command_parser = project_subparsers.add_parser(command_name)
         command_parser.add_argument("--name", required=True, help="Project name")
         command_parser.add_argument("--flake", required=True, help="Relative flake path inside the archive")
+
+    exec_parser = project_subparsers.add_parser("exec")
+    exec_parser.add_argument("--name", required=True, help="Project name")
+    exec_parser.add_argument("--flake", required=True, help="Relative flake path inside the archive")
+    exec_parser.add_argument("command", nargs=argparse.REMAINDER, help="Command to run")
 
     return parser
 
@@ -60,23 +65,39 @@ def _emit_error(message: str) -> int:
     return 1
 
 
+def _emit_attached_error(message: str) -> int:
+    print(message, file=sys.stderr)
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
-    payload = sys.stdin.buffer.read()
     use_cases = _build_use_cases()
     spec = ProjectSpec(name=args.name, flake_relative_path=args.flake)
 
     try:
         if args.project_command == "launch":
+            payload = sys.stdin.buffer.read()
             runtime, exit_code = use_cases.launch(spec, payload)
             return _emit(runtime, exit_code)
         if args.project_command == "rebuild-switch":
+            payload = sys.stdin.buffer.read()
             runtime, exit_code = use_cases.rebuild_switch(spec, payload)
             return _emit(runtime, exit_code)
+        if args.project_command == "shell":
+            return use_cases.shell(spec)
+        if args.project_command == "exec":
+            if not args.command:
+                raise ValueError("command required")
+            return use_cases.exec(spec, args.command)
     except (FileNotFoundError, ValueError) as error:
+        if args.project_command in {"shell", "exec"}:
+            return _emit_attached_error(str(error))
         return _emit_error(str(error))
     except Exception as error:
+        if args.project_command in {"shell", "exec"}:
+            return _emit_attached_error(f"{error}\n{traceback.format_exc()}")
         return _emit_error(f"{error}\n{traceback.format_exc()}")
 
     parser.error("unknown command")

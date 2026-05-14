@@ -14,13 +14,16 @@ DEFAULT_CLIENT_DB_PATH = state_dir() / "client.db"
 class ClientConfig:
     ssh_binary: str = "ssh"
     remote_binary: str = "mnix-server"
+    remote_podman_binary: str = "podman"
     default_server: str | None = None
     database_path: Path = DEFAULT_CLIENT_DB_PATH
 
     @classmethod
     def load(cls) -> "ClientConfig":
         explicit = os.environ.get("MNIX_CLIENT_CONFIG")
-        config_path = Path(explicit).expanduser() if explicit else config_dir() / "client.toml"
+        config_path = (
+            Path(explicit).expanduser() if explicit else config_dir() / "client.toml"
+        )
         data = read_toml(config_path)
 
         database_value = data.get("database_path")
@@ -33,6 +36,7 @@ class ClientConfig:
         return cls(
             ssh_binary=data.get("ssh_binary", "ssh"),
             remote_binary=data.get("remote_binary", "mnix-server"),
+            remote_podman_binary=data.get("remote_podman_binary", "podman"),
             default_server=data.get("default_server"),
             database_path=database_path,
         )

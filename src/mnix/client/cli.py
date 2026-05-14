@@ -39,6 +39,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     rebuild_parser.add_argument("--project", help="Project name")
 
+    shell_parser = subparsers.add_parser("shell", help="Open a shell inside the remote container")
+    shell_parser.add_argument("--project", help="Project name")
+
+    exec_parser = subparsers.add_parser("exec", help="Run a command inside the remote container")
+    exec_parser.add_argument("--project", help="Project name")
+    exec_parser.add_argument("exec_command", nargs=argparse.REMAINDER, help="Command to run")
+
     server_parser = subparsers.add_parser("server", help="Manage servers")
     server_subparsers = server_parser.add_subparsers(dest="server_command", required=True)
     server_subparsers.add_parser("ls", help="List servers")
@@ -127,6 +134,12 @@ def main(argv: list[str] | None = None) -> int:
             if result.stderr.strip():
                 print(result.stderr.strip(), file=sys.stderr)
             return 0
+
+        if args.command == "shell":
+            return service.shell(project_name=args.project)
+
+        if args.command == "exec":
+            return service.exec(command=args.exec_command, project_name=args.project)
 
         if args.command == "server":
             if args.server_command == "ls":

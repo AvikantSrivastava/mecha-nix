@@ -18,6 +18,12 @@ class FakePodmanService:
     def warmup(self, project_name: str, workspace_path: Path, flake_path: Path):
         return CommandResult(["podman", "exec"], 0, "warmup complete", "")
 
+    def shell(self, project_name: str, workspace_path: Path, flake_path: Path):
+        return CommandResult(["podman", "exec", "-it"], 0, str(flake_path), "")
+
+    def exec(self, project_name: str, workspace_path: Path, flake_path: Path, command: list[str]):
+        return CommandResult(command, 5, str(workspace_path), str(flake_path))
+
 
 def build_payload(source_dir: Path) -> bytes:
     buffer = io.BytesIO()
@@ -43,6 +49,40 @@ class ProjectUseCasesTests(unittest.TestCase):
             self.assertEqual(0, exit_code)
             self.assertTrue(runtime.workspace_path.endswith("demo"))
             self.assertIn("warmup complete", runtime.stdout)
+
+    def test_shell_uses_existing_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            workspace = WorkspaceStore(tmp / "workspaces")
+            project_path = workspace.project_path("Demo")
+            nested = project_path / "nix"
+            nested.mkdir(parents=True)
+            flake_path = nested / "flake.nix"
+            flake_path.write_text("{ description = \"demo\"; }")
+
+            use_cases = ProjectUseCases(workspace, FakePodmanService())
+
+            exit_code = use_cases.shell(ProjectSpec(name="Demo", flake_relative_path="nix/flake.nix"))
+
+            self.assertEqual(0, exit_code)
+
+    def test_exec_uses_existing_workspace(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            workspace = WorkspaceStore(tmp / "workspaces")
+            project_path = workspace.project_path("Demo")
+            project_path.mkdir(parents=True)
+            flake_path = project_path / "flake.nix"
+            flake_path.write_text("{ description = \"demo\"; }")
+
+            use_cases = ProjectUseCases(workspace, FakePodmanService())
+
+            exit_code = use_cases.exec(
+                ProjectSpec(name="Demo", flake_relative_path="flake.nix"),
+                ["echo", "hello"],
+            )
+
+            self.assertEqual(5, exit_code)
 
 
 if __name__ == "__main__":

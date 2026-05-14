@@ -45,6 +45,21 @@ class ClientService:
 
         return response
 
+    @staticmethod
+    def _remote_flake_relative_path(project: ProjectRecord) -> str:
+        try:
+            relative_path = Path(project.remote_flake_path).relative_to(project.remote_workspace)
+        except ValueError as error:
+            raise RuntimeError(
+                f"project {project.name} has inconsistent remote paths; rebuild or relaunch it"
+            ) from error
+        return relative_path.as_posix()
+
+    @classmethod
+    def _remote_container_dir(cls, project: ProjectRecord) -> str:
+        relative_path = Path(cls._remote_flake_relative_path(project))
+        return str(Path("/workspace") / relative_path.parent)
+
     def list_projects(self) -> list[ProjectRecord]:
         return self.repository.list_projects()
 
@@ -183,4 +198,47 @@ class ClientService:
             message=f"rebuilt project {project.name}",
             stdout=response.get("stdout", ""),
             stderr=response.get("stderr", ""),
+        )
+
+    def shell(self, project_name: str | None = None) -> int:
+        project = self.resolve_project(project_name)
+        server = self.resolve_server(project.server_name)
+        return self.transport.attach_command(
+            server.endpoint,
+            [
+                self.config.remote_podman_binary,
+                "exec",
+                "-it",
+                "--workdir",
+                self._remote_container_dir(project),
+                project.container_name,
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "develop",
+            ],
+            allocate_tty=True,
+        )
+
+    def exec(self, command: list[str], project_name: str | None = None) -> int:
+        if not command:
+            raise ValueError("command required")
+
+        project = self.resolve_project(project_name)
+        server = self.resolve_server(project.server_name)
+        return self.transport.attach_command(
+            server.endpoint,
+            [
+                self.config.remote_podman_binary,
+                "exec",
+                "--workdir",
+                self._remote_container_dir(project),
+                project.container_name,
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "develop",
+                "-c",
+                *command,
+            ],
         )
