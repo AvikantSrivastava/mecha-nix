@@ -48,7 +48,7 @@ Default path: `~/.config/mnix/server.toml`
 podman_binary = "podman"
 base_image = "docker.io/nixos/nix:latest"
 workspace_root = "/tmp/mnix/workspaces"
-warmup_command = "nix develop -c true"
+warmup_command = "nix --extra-experimental-features 'nix-command flakes' develop -c true"
 container_command = "sleep infinity"
 ```
 
