@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shlex
 import subprocess
 from pathlib import Path
 
@@ -23,8 +24,22 @@ class PodmanService:
             stderr=completed.stderr,
         )
 
+    def _attach(self, argv: list[str]) -> CommandResult:
+        completed = subprocess.run(argv, check=False)
+        return CommandResult(
+            argv=argv,
+            returncode=completed.returncode,
+            stdout="",
+            stderr="",
+        )
+
     def _container_name(self, project_name: str) -> str:
         return f"mnix-{slugify(project_name)}"
+
+    @staticmethod
+    def _container_dir(workspace_path: Path, flake_path: Path) -> str:
+        relative_dir = flake_path.parent.relative_to(workspace_path)
+        return str(Path("/workspace") / relative_dir)
 
     def ensure_container(self, project_name: str, workspace_path: Path) -> tuple[str, list[CommandResult]]:
         container_name = self._container_name(project_name)
@@ -53,7 +68,44 @@ class PodmanService:
 
     def warmup(self, project_name: str, workspace_path: Path, flake_path: Path) -> CommandResult:
         container_name = self._container_name(project_name)
-        relative_dir = flake_path.parent.relative_to(workspace_path)
-        container_dir = Path("/workspace") / relative_dir
-        command = f"cd {container_dir} && {self.warmup_command}"
+        command = f"cd {shlex.quote(self._container_dir(workspace_path, flake_path))} && {self.warmup_command}"
         return self._run([self.podman_binary, "exec", container_name, "sh", "-lc", command])
+
+    def shell(self, project_name: str, workspace_path: Path, flake_path: Path) -> CommandResult:
+        container_name = self._container_name(project_name)
+        container_dir = self._container_dir(workspace_path, flake_path)
+        return self._attach(
+            [
+                self.podman_binary,
+                "exec",
+                "-it",
+                "--workdir",
+                container_dir,
+                container_name,
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "develop",
+            ]
+        )
+
+    def exec(
+        self, project_name: str, workspace_path: Path, flake_path: Path, command: list[str]
+    ) -> CommandResult:
+        container_name = self._container_name(project_name)
+        container_dir = self._container_dir(workspace_path, flake_path)
+        return self._attach(
+            [
+                self.podman_binary,
+                "exec",
+                "--workdir",
+                container_dir,
+                container_name,
+                "nix",
+                "--extra-experimental-features",
+                "nix-command flakes",
+                "develop",
+                "-c",
+                *command,
+            ]
+        )

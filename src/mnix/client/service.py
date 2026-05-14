@@ -45,6 +45,16 @@ class ClientService:
 
         return response
 
+    @staticmethod
+    def _remote_flake_relative_path(project: ProjectRecord) -> str:
+        try:
+            relative_path = Path(project.remote_flake_path).relative_to(project.remote_workspace)
+        except ValueError as error:
+            raise RuntimeError(
+                f"project {project.name} has inconsistent remote paths; rebuild or relaunch it"
+            ) from error
+        return relative_path.as_posix()
+
     def list_projects(self) -> list[ProjectRecord]:
         return self.repository.list_projects()
 
@@ -183,4 +193,40 @@ class ClientService:
             message=f"rebuilt project {project.name}",
             stdout=response.get("stdout", ""),
             stderr=response.get("stderr", ""),
+        )
+
+    def shell(self, project_name: str | None = None) -> int:
+        project = self.resolve_project(project_name)
+        server = self.resolve_server(project.server_name)
+        return self.transport.attach(
+            server.endpoint,
+            [
+                "project",
+                "shell",
+                "--name",
+                project.name,
+                "--flake",
+                self._remote_flake_relative_path(project),
+            ],
+            allocate_tty=True,
+        )
+
+    def exec(self, command: list[str], project_name: str | None = None) -> int:
+        if not command:
+            raise ValueError("command required")
+
+        project = self.resolve_project(project_name)
+        server = self.resolve_server(project.server_name)
+        return self.transport.attach(
+            server.endpoint,
+            [
+                "project",
+                "exec",
+                "--name",
+                project.name,
+                "--flake",
+                self._remote_flake_relative_path(project),
+                "--",
+                *command,
+            ],
         )
