@@ -147,6 +147,36 @@ class ClientServiceTests(unittest.TestCase):
                 transport.attach_command_calls[0],
             )
 
+    def test_shell_uses_configured_remote_podman_binary(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repository = ClientRepository(Database(tmp / "client.db"))
+            repository.add_server("dev", "example.org")
+            repository.upsert_project(
+                ProjectRecord(
+                    name="demo",
+                    server_name="dev",
+                    local_flake_path=str(tmp / "flake.nix"),
+                    remote_workspace="/srv/demo",
+                    remote_flake_path="/srv/demo/flake.nix",
+                    container_name="mnix-demo",
+                )
+            )
+            repository.set_selected_project("demo")
+            config = ClientConfig(
+                database_path=tmp / "client.db",
+                remote_podman_binary="/run/current-system/sw/bin/podman",
+            )
+            transport = FakeTransport(attach_returncode=0)
+
+            service = ClientService(repository, config, transport)
+
+            self.assertEqual(0, service.shell())
+            self.assertEqual(
+                "/run/current-system/sw/bin/podman",
+                transport.attach_command_calls[0][1][0],
+            )
+
     def test_exec_runs_command_in_selected_project(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)

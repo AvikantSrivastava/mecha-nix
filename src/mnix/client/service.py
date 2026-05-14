@@ -206,7 +206,7 @@ class ClientService:
         return self.transport.attach_command(
             server.endpoint,
             [
-                "podman",
+                self.config.remote_podman_binary,
                 "exec",
                 "-it",
                 "--workdir",
@@ -229,7 +229,7 @@ class ClientService:
         return self.transport.attach_command(
             server.endpoint,
             [
-                "podman",
+                self.config.remote_podman_binary,
                 "exec",
                 "--workdir",
                 self._remote_container_dir(project),

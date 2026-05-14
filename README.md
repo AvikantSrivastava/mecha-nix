@@ -40,6 +40,7 @@ Default path: `~/.config/mnix/client.toml`
 ```toml
 ssh_binary = "ssh"
 remote_binary = "mnix-server"
+remote_podman_binary = "podman"
 default_server = "my-server"
 database_path = "~/.local/state/mnix/client.db"
 ```

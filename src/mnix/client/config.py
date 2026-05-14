@@ -14,6 +14,7 @@ DEFAULT_CLIENT_DB_PATH = state_dir() / "client.db"
 class ClientConfig:
     ssh_binary: str = "ssh"
     remote_binary: str = "mnix-server"
+    remote_podman_binary: str = "podman"
     default_server: str | None = None
     database_path: Path = DEFAULT_CLIENT_DB_PATH
 
@@ -33,6 +34,7 @@ class ClientConfig:
         return cls(
             ssh_binary=data.get("ssh_binary", "ssh"),
             remote_binary=data.get("remote_binary", "mnix-server"),
+            remote_podman_binary=data.get("remote_podman_binary", "podman"),
             default_server=data.get("default_server"),
             database_path=database_path,
         )
