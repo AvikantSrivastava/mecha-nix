@@ -12,20 +12,26 @@ from mnix.client.transport import RemoteExecution
 
 
 class FakeTransport:
-    def __init__(self, response: RemoteExecution | None = None, attach_returncode: int = 0) -> None:
+    def __init__(
+        self, response: RemoteExecution | None = None, attach_returncode: int = 0
+    ) -> None:
         self.response = response
         self.attach_returncode = attach_returncode
         self.calls: list[tuple[str, list[str], bytes | None]] = []
         self.attach_calls: list[tuple[str, list[str], bool]] = []
         self.attach_command_calls: list[tuple[str, list[str], bool]] = []
 
-    def run(self, endpoint: str, args: list[str], payload: bytes | None = None) -> RemoteExecution:
+    def run(
+        self, endpoint: str, args: list[str], payload: bytes | None = None
+    ) -> RemoteExecution:
         self.calls.append((endpoint, args, payload))
         if self.response is None:
             raise AssertionError("unexpected transport.run call")
         return self.response
 
-    def attach(self, endpoint: str, args: list[str], *, allocate_tty: bool = False) -> int:
+    def attach(
+        self, endpoint: str, args: list[str], *, allocate_tty: bool = False
+    ) -> int:
         self.attach_calls.append((endpoint, args, allocate_tty))
         return self.attach_returncode
 
@@ -41,7 +47,7 @@ class ClientServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             flake = tmp / "flake.nix"
-            flake.write_text("{ description = \"demo\"; }")
+            flake.write_text('{ description = "demo"; }')
 
             repository = ClientRepository(Database(tmp / "client.db"))
             repository.add_server("dev", "example.org")
@@ -65,7 +71,7 @@ class ClientServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             flake = tmp / "flake.nix"
-            flake.write_text("{ description = \"demo\"; }")
+            flake.write_text('{ description = "demo"; }')
 
             repository = ClientRepository(Database(tmp / "client.db"))
             repository.add_server("dev", "example.org")
@@ -87,7 +93,7 @@ class ClientServiceTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
             flake = tmp / "flake.nix"
-            flake.write_text("{ description = \"demo\"; }")
+            flake.write_text('{ description = "demo"; }')
 
             repository = ClientRepository(Database(tmp / "client.db"))
             repository.add_server("dev", "example.org")

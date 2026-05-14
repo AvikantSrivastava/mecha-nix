@@ -21,7 +21,9 @@ class ClientConfig:
     @classmethod
     def load(cls) -> "ClientConfig":
         explicit = os.environ.get("MNIX_CLIENT_CONFIG")
-        config_path = Path(explicit).expanduser() if explicit else config_dir() / "client.toml"
+        config_path = (
+            Path(explicit).expanduser() if explicit else config_dir() / "client.toml"
+        )
         data = read_toml(config_path)
 
         database_value = data.get("database_path")
