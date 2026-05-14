@@ -17,6 +17,7 @@ class FakeTransport:
         self.attach_returncode = attach_returncode
         self.calls: list[tuple[str, list[str], bytes | None]] = []
         self.attach_calls: list[tuple[str, list[str], bool]] = []
+        self.attach_command_calls: list[tuple[str, list[str], bool]] = []
 
     def run(self, endpoint: str, args: list[str], payload: bytes | None = None) -> RemoteExecution:
         self.calls.append((endpoint, args, payload))
@@ -26,6 +27,12 @@ class FakeTransport:
 
     def attach(self, endpoint: str, args: list[str], *, allocate_tty: bool = False) -> int:
         self.attach_calls.append((endpoint, args, allocate_tty))
+        return self.attach_returncode
+
+    def attach_command(
+        self, endpoint: str, command_args: list[str], *, allocate_tty: bool = False
+    ) -> int:
+        self.attach_command_calls.append((endpoint, command_args, allocate_tty))
         return self.attach_returncode
 
 
@@ -123,10 +130,21 @@ class ClientServiceTests(unittest.TestCase):
             self.assertEqual(
                 (
                     "example.org",
-                    ["project", "shell", "--name", "demo", "--flake", "nix/flake.nix"],
+                    [
+                        "podman",
+                        "exec",
+                        "-it",
+                        "--workdir",
+                        "/workspace/nix",
+                        "mnix-demo",
+                        "nix",
+                        "--extra-experimental-features",
+                        "nix-command flakes",
+                        "develop",
+                    ],
                     True,
                 ),
-                transport.attach_calls[0],
+                transport.attach_command_calls[0],
             )
 
     def test_exec_runs_command_in_selected_project(self) -> None:
@@ -154,10 +172,23 @@ class ClientServiceTests(unittest.TestCase):
             self.assertEqual(
                 (
                     "example.org",
-                    ["project", "exec", "--name", "demo", "--flake", "flake.nix", "--", "echo", "hello"],
+                    [
+                        "podman",
+                        "exec",
+                        "--workdir",
+                        "/workspace",
+                        "mnix-demo",
+                        "nix",
+                        "--extra-experimental-features",
+                        "nix-command flakes",
+                        "develop",
+                        "-c",
+                        "echo",
+                        "hello",
+                    ],
                     False,
                 ),
-                transport.attach_calls[0],
+                transport.attach_command_calls[0],
             )
 
 

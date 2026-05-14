@@ -26,6 +26,10 @@ class SSHTransport:
     def _remote_command(self, args: list[str]) -> str:
         return " ".join(shlex.quote(part) for part in [self.remote_binary, *args])
 
+    @staticmethod
+    def _quote_command(args: list[str]) -> str:
+        return " ".join(shlex.quote(part) for part in args)
+
     def run(self, endpoint: str, args: list[str], payload: bytes | None = None) -> RemoteExecution:
         remote_command = self._remote_command(args)
         completed = subprocess.run(
@@ -45,5 +49,15 @@ class SSHTransport:
         if allocate_tty:
             command.append("-tt")
         command.extend([endpoint, self._remote_command(args)])
+        completed = subprocess.run(command, check=False)
+        return completed.returncode
+
+    def attach_command(
+        self, endpoint: str, command_args: list[str], *, allocate_tty: bool = False
+    ) -> int:
+        command = [self.ssh_binary]
+        if allocate_tty:
+            command.append("-tt")
+        command.extend([endpoint, self._quote_command(command_args)])
         completed = subprocess.run(command, check=False)
         return completed.returncode
