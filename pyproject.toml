@@ -7,7 +7,7 @@ name = "mnix"
 version = "0.1.0"
 description = "Stateless client/server remote development environments powered by Nix and Podman."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.6"
 license = { text = "MIT" }
 authors = [{ name = "Avikant Srivastava", email = "me@avikant.com" }]
 dependencies = ["rich-click>=1.9.4"]
