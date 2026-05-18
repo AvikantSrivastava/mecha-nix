@@ -125,6 +125,35 @@ def list_projects() -> int:
 
 
 @cli.command()
+@click.option("--server", help="Server name.")
+def sync(server: str | None) -> int:
+    def action(service: ClientService) -> int:
+        status = service.sync_status(server_name=server)
+        if not status.matched_projects and not status.missing_projects:
+            click.echo(f"no client projects tracked for server {status.server.name}")
+            return 0
+        if not status.missing_projects:
+            click.echo(f"server {status.server.name} is in sync")
+            return 0
+
+        for project in status.missing_projects:
+            should_purge = click.confirm(
+                (
+                    f"Container {project.container_name} for project {project.name} "
+                    f"is missing on server {status.server.name}. Purge local client state?"
+                ),
+                default=False,
+            )
+            if should_purge:
+                click.echo(service.purge_project(project.name))
+            else:
+                click.echo(f"kept local state for project {project.name}")
+        return 0
+
+    return _run_client(action)
+
+
+@cli.command()
 @click.argument("name", required=False)
 def select(name: str | None) -> int:
     def action(service: ClientService) -> int:

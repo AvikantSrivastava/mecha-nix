@@ -9,6 +9,8 @@ from mnix.shared.text import slugify
 
 
 class PodmanService:
+    CONTAINER_PREFIX = "mnix-"
+
     def __init__(self, podman_binary: str, base_image: str, container_command: str, warmup_command: str) -> None:
         self.podman_binary = podman_binary
         self.base_image = base_image
@@ -34,7 +36,18 @@ class PodmanService:
         )
 
     def _container_name(self, project_name: str) -> str:
-        return f"mnix-{slugify(project_name)}"
+        return f"{self.CONTAINER_PREFIX}{slugify(project_name)}"
+
+    def list_running_containers(self) -> list[str]:
+        result = self._run([self.podman_binary, "ps", "--format", "{{.Names}}"])
+        if result.returncode != 0:
+            message = result.stderr.strip() or "failed to list running containers"
+            raise RuntimeError(message)
+        return [
+            name
+            for raw_name in result.stdout.splitlines()
+            if (name := raw_name.strip()).startswith(self.CONTAINER_PREFIX)
+        ]
 
     @staticmethod
     def _container_dir(workspace_path: Path, flake_path: Path) -> str:

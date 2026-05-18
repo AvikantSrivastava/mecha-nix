@@ -11,6 +11,9 @@ class ProjectUseCases:
         self.workspace_store = workspace_store
         self.podman_service = podman_service
 
+    def list_running_containers(self) -> list[str]:
+        return self.podman_service.list_running_containers()
+
     def launch(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
         return self._sync_project(spec, payload)
 

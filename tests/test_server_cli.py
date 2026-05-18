@@ -27,6 +27,9 @@ class FakeUseCases:
         self.exec_calls: list[tuple[str, str, list[str]]] = []
         self.launch_calls: list[tuple[str, str, bytes]] = []
 
+    def list_running_containers(self) -> list[str]:
+        return ["mnix-demo"]
+
     def launch(self, spec, payload: bytes):
         self.launch_calls.append((spec.name, spec.flake_relative_path, payload))
         return FakeRuntime(), 0
@@ -97,6 +100,21 @@ class ServerCliTests(unittest.TestCase):
 
         self.assertEqual(0, result.exit_code)
         self.assertIn("Usage:", result.output)
+
+    def test_project_ls_emits_json_payload(self) -> None:
+        use_cases = FakeUseCases()
+        stdout = io.StringIO()
+
+        with (
+            patch(
+                "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
+            ),
+            patch.object(sys, "stdout", stdout),
+        ):
+            exit_code = server_cli.main(["project", "ls"])
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(["mnix-demo"], json.loads(stdout.getvalue())["containers"])
 
 
 if __name__ == "__main__":

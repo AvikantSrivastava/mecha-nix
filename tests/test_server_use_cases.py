@@ -12,6 +12,9 @@ from mnix.server.infrastructure.workspace import WorkspaceStore
 
 
 class FakePodmanService:
+    def list_running_containers(self):
+        return ["mnix-demo"]
+
     def ensure_container(self, project_name: str, workspace_path: Path):
         return "mnix-demo", [CommandResult(["podman"], 0, "container ready", "")]
 
@@ -83,6 +86,11 @@ class ProjectUseCasesTests(unittest.TestCase):
             )
 
             self.assertEqual(5, exit_code)
+
+    def test_list_running_containers_passes_through(self) -> None:
+        use_cases = ProjectUseCases(WorkspaceStore(Path("/tmp/unused")), FakePodmanService())
+
+        self.assertEqual(["mnix-demo"], use_cases.list_running_containers())
 
 
 if __name__ == "__main__":
