@@ -107,6 +107,18 @@ class ClientService:
             raise ValueError(f"unknown project: {name}")
         return f"purged local state for project {name}"
 
+    def rm(self, project_name: str | None = None) -> OperationResult:
+        project = self.resolve_project(project_name)
+        server = self.resolve_server(project.server_name)
+        execution = self.transport.rm(server.endpoint, project.name)
+        response = self._decode_remote_response(execution, "remote remove failed")
+        self.purge_project(project.name)
+        return OperationResult(
+            message=f"removed project {project.name}",
+            stdout=response.get("stdout", ""),
+            stderr=response.get("stderr", ""),
+        )
+
     def resolve_server(self, requested_name: str | None = None) -> ServerRecord:
         if requested_name:
             server = self.repository.get_server(requested_name)

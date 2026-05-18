@@ -30,6 +30,11 @@ class ProjectUseCases:
         result = self.podman_service.exec(spec.name, workspace_path, flake_path, command)
         return result.returncode
 
+    def rm(self, spec: ProjectSpec):
+        result = self.podman_service.rm(spec.name)
+        self.workspace_store.delete_project(spec.name)
+        return result
+
     def _sync_project(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
         workspace_path, flake_path = self.workspace_store.replace_from_archive(
             spec.name,

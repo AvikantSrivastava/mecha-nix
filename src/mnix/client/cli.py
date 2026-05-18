@@ -191,6 +191,36 @@ def new(name: str, flake: str, server: str | None) -> int:
     return _run_client(action)
 
 
+@cli.command()
+@click.argument("name", required=False)
+@click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    help="Skip confirmation prompt.",
+)
+def rm(name: str | None, yes: bool) -> int:
+    def action(service: ClientService) -> int:
+        project = service.resolve_project(name)
+        if not yes:
+           confirmed = click.confirm(
+               f"Are you sure you want to delete this project: {project.name}?",
+               default=False,
+           )
+           if not confirmed:
+               click.echo("Aborted.")
+               return 1
+
+        result = service.rm(project.name)
+        click.echo(result.message)
+        if result.stdout.strip():
+           click.echo(result.stdout.strip())
+        if result.stderr.strip():
+           click.echo(result.stderr.strip(), err=True)
+        return 0
+
+    return _run_client(action)
+
 @cli.command("rebuild-switch")
 @click.argument("flake", required=False)
 @click.option("--project", help="Project name.")

@@ -147,6 +147,22 @@ def rebuild_switch(name: str, flake: str) -> int:
 
 
 @project.command()
+@click.option("--name", required=True, help="Project name.")
+def rm(name: str) -> int:
+    def action(use_cases: ProjectUseCases) -> int:
+        result = use_cases.rm(ProjectSpec(name=name, flake_relative_path=""))
+        return _emit_json(
+            {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            },
+            result.returncode,
+        )
+
+    return _detached_command(action)
+
+
+@project.command()
 @_project_options
 def shell(name: str, flake: str) -> int:
     return _attached_command(

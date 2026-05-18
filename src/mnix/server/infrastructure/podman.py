@@ -122,3 +122,24 @@ class PodmanService:
                 *command,
             ]
         )
+
+    def rm(
+        self, project_name: str
+    ) -> CommandResult:
+        container_name = self._container_name(project_name)
+        stop_result = self._run([self.podman_binary, "stop", container_name])
+        rm_result = self._run([self.podman_binary, "rm", container_name])
+        return CommandResult(
+            argv=[self.podman_binary, "rm", container_name],
+            returncode=max(stop_result.returncode, rm_result.returncode),
+            stdout="\n".join(
+                part.stdout.strip()
+                for part in (stop_result, rm_result)
+                if part.stdout.strip()
+            ),
+            stderr="\n".join(
+                part.stderr.strip()
+                for part in (stop_result, rm_result)
+                if part.stderr.strip()
+            ),
+        )

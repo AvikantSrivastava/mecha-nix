@@ -28,6 +28,13 @@ class WorkspaceStore:
             raise FileNotFoundError(f"flake not found in uploaded archive: {flake_relative_path}")
         return workspace_path, flake_path
 
+    def delete_project(self, project_name: str) -> bool:
+        workspace_path = self.project_path(project_name)
+        if not workspace_path.exists():
+            return False
+        shutil.rmtree(workspace_path)
+        return True
+
     @staticmethod
     def _safe_extract(archive: tarfile.TarFile, destination: Path) -> None:
         destination = destination.resolve()

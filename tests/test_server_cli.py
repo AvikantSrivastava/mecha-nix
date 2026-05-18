@@ -26,6 +26,7 @@ class FakeUseCases:
     def __init__(self) -> None:
         self.exec_calls: list[tuple[str, str, list[str]]] = []
         self.launch_calls: list[tuple[str, str, bytes]] = []
+        self.rm_calls: list[str] = []
 
     def list_running_containers(self) -> list[str]:
         return ["mnix-demo"]
@@ -37,6 +38,14 @@ class FakeUseCases:
     def exec(self, spec, command: list[str]) -> int:
         self.exec_calls.append((spec.name, spec.flake_relative_path, command))
         return 5
+
+    def rm(self, spec):
+        self.rm_calls.append(spec.name)
+        return type(
+            "Result",
+            (),
+            {"stdout": "removed", "stderr": "", "returncode": 0},
+        )()
 
 
 class ServerCliTests(unittest.TestCase):
@@ -115,6 +124,24 @@ class ServerCliTests(unittest.TestCase):
 
         self.assertEqual(0, exit_code)
         self.assertEqual(["mnix-demo"], json.loads(stdout.getvalue())["containers"])
+
+    def test_project_rm_emits_json_payload(self) -> None:
+        use_cases = FakeUseCases()
+        stdout = io.StringIO()
+
+        with (
+            patch(
+                "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
+            ),
+            patch.object(sys, "stdout", stdout),
+        ):
+            exit_code = server_cli.main(["project", "rm", "--name", "demo"])
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(["demo"], use_cases.rm_calls)
+        payload = json.loads(stdout.getvalue())
+        self.assertEqual("removed", payload["stdout"])
+        self.assertEqual("", payload["stderr"])
 
 
 if __name__ == "__main__":

@@ -12,6 +12,7 @@ from mnix.client import cli as client_cli
 class FakeClientService:
     def __init__(self) -> None:
         self.exec_calls: list[tuple[list[str], str | None]] = []
+        self.rm_calls: list[str | None] = []
         self.select_calls: list[str] = []
         self.add_server_calls: list[tuple[str, str]] = []
         self.sync_calls: list[str | None] = []
@@ -73,6 +74,14 @@ class FakeClientService:
     def purge_project(self, name: str) -> str:
         self.purge_calls.append(name)
         return f"purged local state for project {name}"
+
+    def resolve_project(self, name: str | None = None):
+        project_name = "beta" if name is None else name
+        return SimpleNamespace(name=project_name)
+
+    def rm(self, project_name: str | None = None):
+        self.rm_calls.append(project_name)
+        return SimpleNamespace(message=f"removed project {project_name}", stdout="", stderr="")
 
 
 class ClientCliTests(unittest.TestCase):
@@ -148,6 +157,17 @@ class ClientCliTests(unittest.TestCase):
         self.assertIn("purged local state for project alpha", result.output)
         self.assertEqual([None], service.sync_calls)
         self.assertEqual(["alpha"], service.purge_calls)
+
+    def test_rm_deletes_named_project(self) -> None:
+        service = FakeClientService()
+        runner = CliRunner()
+
+        with patch("mnix.client.cli._build_service", return_value=service):
+            result = runner.invoke(client_cli.cli, ["rm", "alpha", "-y"])
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("removed project alpha", result.output)
+        self.assertEqual(["alpha"], service.rm_calls)
 
 
 if __name__ == "__main__":
