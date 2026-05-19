@@ -10,7 +10,10 @@ readme = "README.md"
 requires-python = ">=3.6"
 license = { text = "MIT" }
 authors = [{ name = "Avikant Srivastava", email = "me@avikant.com" }]
-dependencies = ["rich-click>=1.9.4"]
+dependencies = [
+    "rich-click>=1.9.4; python_version >= \"3.8\"",
+    "click; python_version < \"3.8\""
+]
 
 [project.scripts]
 mnix = "mnix.client.cli:main"
