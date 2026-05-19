@@ -1,5 +1,3 @@
-# from __future__ import annotations
-
 from dataclasses import dataclass
 
 from mnix.client.db import Database
@@ -30,7 +28,9 @@ class ClientRepository:
             rows = connection.execute(
                 "SELECT name, endpoint FROM servers ORDER BY name"
             ).fetchall()
-        return [ServerRecord(name=row["name"], endpoint=row["endpoint"]) for row in rows]
+        return [
+            ServerRecord(name=row["name"], endpoint=row["endpoint"]) for row in rows
+        ]
 
     def add_server(self, name: str, endpoint: str) -> None:
         with self.database.connect() as connection:

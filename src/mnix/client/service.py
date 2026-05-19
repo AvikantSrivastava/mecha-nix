@@ -1,5 +1,3 @@
-# from __future__ import annotations
-
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -55,7 +53,9 @@ class ClientService:
     @staticmethod
     def _remote_flake_relative_path(project: ProjectRecord) -> str:
         try:
-            relative_path = Path(project.remote_flake_path).relative_to(project.remote_workspace)
+            relative_path = Path(project.remote_flake_path).relative_to(
+                project.remote_workspace
+            )
         except ValueError as error:
             raise RuntimeError(
                 f"project {project.name} has inconsistent remote paths; rebuild or relaunch it"
@@ -153,7 +153,9 @@ class ClientService:
 
     def _list_remote_containers(self, server: ServerRecord) -> set[str]:
         execution = self.transport.run(server.endpoint, ["project", "ls"])
-        response = self._decode_remote_response(execution, "remote project listing failed")
+        response = self._decode_remote_response(
+            execution, "remote project listing failed"
+        )
         containers = response.get("containers")
         if not isinstance(containers, list) or not all(
             isinstance(item, str) for item in containers

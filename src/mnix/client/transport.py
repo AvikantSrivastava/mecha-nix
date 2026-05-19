@@ -1,5 +1,3 @@
-# from __future__ import annotations
-
 import json
 import shlex
 import subprocess
@@ -30,7 +28,9 @@ class SSHTransport:
     def _quote_command(args: list[str]) -> str:
         return " ".join(shlex.quote(part) for part in args)
 
-    def run(self, endpoint: str, args: list[str], payload: bytes | None = None) -> RemoteExecution:
+    def run(
+        self, endpoint: str, args: list[str], payload: bytes | None = None
+    ) -> RemoteExecution:
         remote_command = self._remote_command(args)
         completed = subprocess.run(
             [self.ssh_binary, endpoint, remote_command],
@@ -44,7 +44,9 @@ class SSHTransport:
             stderr=completed.stderr.decode(),
         )
 
-    def attach(self, endpoint: str, args: list[str], *, allocate_tty: bool = False) -> int:
+    def attach(
+        self, endpoint: str, args: list[str], *, allocate_tty: bool = False
+    ) -> int:
         command = [self.ssh_binary]
         if allocate_tty:
             command.append("-tt")
@@ -62,7 +64,5 @@ class SSHTransport:
         completed = subprocess.run(command, check=False)
         return completed.returncode
 
-    def rm(
-        self, endpoint: str, project_name: str
-    ) -> RemoteExecution:
+    def rm(self, endpoint: str, project_name: str) -> RemoteExecution:
         return self.run(endpoint, ["project", "rm", "--name", project_name])

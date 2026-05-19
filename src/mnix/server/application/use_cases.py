@@ -1,5 +1,3 @@
-# from __future__ import annotations
-
 from io import BytesIO
 from pathlib import Path
 
@@ -17,7 +15,9 @@ class ProjectUseCases:
     def launch(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
         return self._sync_project(spec, payload)
 
-    def rebuild_switch(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
+    def rebuild_switch(
+        self, spec: ProjectSpec, payload: bytes
+    ) -> tuple[ProjectRuntime, int]:
         return self._sync_project(spec, payload)
 
     def shell(self, spec: ProjectSpec) -> int:
@@ -27,7 +27,9 @@ class ProjectUseCases:
 
     def exec(self, spec: ProjectSpec, command: list[str]) -> int:
         workspace_path, flake_path = self._resolve_project_paths(spec)
-        result = self.podman_service.exec(spec.name, workspace_path, flake_path, command)
+        result = self.podman_service.exec(
+            spec.name, workspace_path, flake_path, command
+        )
         return result.returncode
 
     def rm(self, spec: ProjectSpec):
@@ -35,18 +37,28 @@ class ProjectUseCases:
         self.workspace_store.delete_project(spec.name)
         return result
 
-    def _sync_project(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
+    def _sync_project(
+        self, spec: ProjectSpec, payload: bytes
+    ) -> tuple[ProjectRuntime, int]:
         workspace_path, flake_path = self.workspace_store.replace_from_archive(
             spec.name,
             BytesIO(payload),
             spec.flake_relative_path,
         )
-        container_name, results = self.podman_service.ensure_container(spec.name, workspace_path)
-        warmup_result = self.podman_service.warmup(spec.name, workspace_path, flake_path)
+        container_name, results = self.podman_service.ensure_container(
+            spec.name, workspace_path
+        )
+        warmup_result = self.podman_service.warmup(
+            spec.name, workspace_path, flake_path
+        )
         results.append(warmup_result)
 
-        stdout = "\n".join(part.stdout.strip() for part in results if part.stdout.strip())
-        stderr = "\n".join(part.stderr.strip() for part in results if part.stderr.strip())
+        stdout = "\n".join(
+            part.stdout.strip() for part in results if part.stdout.strip()
+        )
+        stderr = "\n".join(
+            part.stderr.strip() for part in results if part.stderr.strip()
+        )
         exit_code = max(result.returncode for result in results)
         runtime = ProjectRuntime(
             workspace_path=str(workspace_path),
@@ -63,5 +75,7 @@ class ProjectUseCases:
         if flake_path != workspace_path and workspace_path not in flake_path.parents:
             raise ValueError(f"unsafe flake path: {spec.flake_relative_path}")
         if not flake_path.exists():
-            raise FileNotFoundError(f"flake not found in workspace: {spec.flake_relative_path}")
+            raise FileNotFoundError(
+                f"flake not found in workspace: {spec.flake_relative_path}"
+            )
         return workspace_path, flake_path
