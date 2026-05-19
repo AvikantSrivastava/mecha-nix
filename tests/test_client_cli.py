@@ -169,6 +169,19 @@ class ClientCliTests(unittest.TestCase):
         self.assertIn("removed project alpha", result.output)
         self.assertEqual(["alpha"], service.rm_calls)
 
+    def test_rm_prompts_for_project_when_name_missing(self) -> None:
+        service = FakeClientService()
+        runner = CliRunner()
+
+        with patch("mnix.client.cli._build_service", return_value=service):
+            result = runner.invoke(client_cli.cli, ["rm", "-y"], input="2\n")
+
+        self.assertEqual(0, result.exit_code)
+        self.assertIn("Please choose a project to delete", result.output)
+        self.assertIn("Projects", result.output)
+        self.assertIn("removed project beta", result.output)
+        self.assertEqual(["beta"], service.rm_calls)
+
 
 if __name__ == "__main__":
     unittest.main()

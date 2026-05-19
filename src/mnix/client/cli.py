@@ -201,7 +201,11 @@ def new(name: str, flake: str, server: str | None) -> int:
 )
 def rm(name: str | None, yes: bool) -> int:
     def action(service: ClientService) -> int:
-        project = service.resolve_project(name)
+        selection = name
+        if selection is None:
+           _console().print("Please choose a project to delete")
+           selection = _interactive_project_choice(service)
+        project = service.resolve_project(selection)
         if not yes:
            confirmed = click.confirm(
                f"Are you sure you want to delete this project: {project.name}?",
