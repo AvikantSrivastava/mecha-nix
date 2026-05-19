@@ -4,7 +4,10 @@ import sys
 from pathlib import Path
 from typing import Callable
 
-import rich_click as click
+if sys.version_info >= (3, 8):
+    import rich_click as click
+else:
+    import click
 from rich.console import Console
 from rich.table import Table
 
@@ -203,27 +206,28 @@ def rm(name: str | None, yes: bool) -> int:
     def action(service: ClientService) -> int:
         selection = name
         if selection is None:
-           _console().print("Please choose a project to delete")
-           selection = _interactive_project_choice(service)
+            _console().print("Please choose a project to delete")
+            selection = _interactive_project_choice(service)
         project = service.resolve_project(selection)
         if not yes:
-           confirmed = click.confirm(
-               f"Are you sure you want to delete this project: {project.name}?",
-               default=False,
-           )
-           if not confirmed:
-               click.echo("Aborted.")
-               return 1
+            confirmed = click.confirm(
+                f"Are you sure you want to delete this project: {project.name}?",
+                default=False,
+            )
+            if not confirmed:
+                click.echo("Aborted.")
+                return 1
 
         result = service.rm(project.name)
         click.echo(result.message)
         if result.stdout.strip():
-           click.echo(result.stdout.strip())
+            click.echo(result.stdout.strip())
         if result.stderr.strip():
-           click.echo(result.stderr.strip(), err=True)
+            click.echo(result.stderr.strip(), err=True)
         return 0
 
     return _run_client(action)
+
 
 @cli.command("rebuild-switch")
 @click.argument("flake", required=False)
