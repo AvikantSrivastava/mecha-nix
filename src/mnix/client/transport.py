@@ -61,3 +61,8 @@ class SSHTransport:
         command.extend([endpoint, self._quote_command(command_args)])
         completed = subprocess.run(command, check=False)
         return completed.returncode
+
+    def rm(
+        self, endpoint: str, project_name: str
+    ) -> RemoteExecution:
+        return self.run(endpoint, ["project", "rm", "--name", project_name])

@@ -11,6 +11,9 @@ class ProjectUseCases:
         self.workspace_store = workspace_store
         self.podman_service = podman_service
 
+    def list_running_containers(self) -> list[str]:
+        return self.podman_service.list_running_containers()
+
     def launch(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
         return self._sync_project(spec, payload)
 
@@ -26,6 +29,11 @@ class ProjectUseCases:
         workspace_path, flake_path = self._resolve_project_paths(spec)
         result = self.podman_service.exec(spec.name, workspace_path, flake_path, command)
         return result.returncode
+
+    def rm(self, spec: ProjectSpec):
+        result = self.podman_service.rm(spec.name)
+        self.workspace_store.delete_project(spec.name)
+        return result
 
     def _sync_project(self, spec: ProjectSpec, payload: bytes) -> tuple[ProjectRuntime, int]:
         workspace_path, flake_path = self.workspace_store.replace_from_archive(

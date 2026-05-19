@@ -18,6 +18,7 @@ class FakeTransport:
         self.response = response
         self.attach_returncode = attach_returncode
         self.calls: list[tuple[str, list[str], bytes | None]] = []
+        self.rm_calls: list[tuple[str, str]] = []
         self.attach_calls: list[tuple[str, list[str], bool]] = []
         self.attach_command_calls: list[tuple[str, list[str], bool]] = []
 
@@ -40,6 +41,12 @@ class FakeTransport:
     ) -> int:
         self.attach_command_calls.append((endpoint, command_args, allocate_tty))
         return self.attach_returncode
+
+    def rm(self, endpoint: str, project_name: str) -> RemoteExecution:
+        self.rm_calls.append((endpoint, project_name))
+        if self.response is None:
+            raise AssertionError("unexpected transport.rm call")
+        return self.response
 
 
 class ClientServiceTests(unittest.TestCase):
@@ -226,6 +233,103 @@ class ClientServiceTests(unittest.TestCase):
                 ),
                 transport.attach_command_calls[0],
             )
+
+    def test_sync_status_detects_missing_remote_containers(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repository = ClientRepository(Database(tmp / "client.db"))
+            repository.add_server("dev", "example.org")
+            repository.upsert_project(
+                ProjectRecord(
+                    name="demo",
+                    server_name="dev",
+                    local_flake_path=str(tmp / "demo.nix"),
+                    remote_workspace="/srv/demo",
+                    remote_flake_path="/srv/demo/flake.nix",
+                    container_name="mnix-demo",
+                )
+            )
+            repository.upsert_project(
+                ProjectRecord(
+                    name="keep",
+                    server_name="dev",
+                    local_flake_path=str(tmp / "keep.nix"),
+                    remote_workspace="/srv/keep",
+                    remote_flake_path="/srv/keep/flake.nix",
+                    container_name="mnix-keep",
+                )
+            )
+            config = ClientConfig(database_path=tmp / "client.db")
+            transport = FakeTransport(
+                RemoteExecution(
+                    returncode=0,
+                    stdout='{"containers":["mnix-keep"]}',
+                    stderr="",
+                )
+            )
+
+            service = ClientService(repository, config, transport)
+            status = service.sync_status("dev")
+
+            self.assertEqual("dev", status.server.name)
+            self.assertEqual(["keep"], [project.name for project in status.matched_projects])
+            self.assertEqual(["demo"], [project.name for project in status.missing_projects])
+            self.assertEqual(["project", "ls"], transport.calls[0][1])
+
+    def test_purge_project_removes_local_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repository = ClientRepository(Database(tmp / "client.db"))
+            repository.add_server("dev", "example.org")
+            repository.upsert_project(
+                ProjectRecord(
+                    name="demo",
+                    server_name="dev",
+                    local_flake_path=str(tmp / "flake.nix"),
+                    remote_workspace="/srv/demo",
+                    remote_flake_path="/srv/demo/flake.nix",
+                    container_name="mnix-demo",
+                )
+            )
+            repository.set_selected_project("demo")
+            config = ClientConfig(database_path=tmp / "client.db")
+            service = ClientService(repository, config, FakeTransport())
+
+            self.assertEqual(
+                "purged local state for project demo",
+                service.purge_project("demo"),
+            )
+            self.assertIsNone(repository.get_project("demo"))
+            self.assertIsNone(repository.get_selected_project_name())
+
+    def test_rm_removes_remote_project_and_local_state(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            repository = ClientRepository(Database(tmp / "client.db"))
+            repository.add_server("dev", "example.org")
+            repository.upsert_project(
+                ProjectRecord(
+                    name="demo",
+                    server_name="dev",
+                    local_flake_path=str(tmp / "flake.nix"),
+                    remote_workspace="/srv/demo",
+                    remote_flake_path="/srv/demo/flake.nix",
+                    container_name="mnix-demo",
+                )
+            )
+            repository.set_selected_project("demo")
+            config = ClientConfig(database_path=tmp / "client.db")
+            transport = FakeTransport(
+                RemoteExecution(returncode=0, stdout='{"stdout":"removed","stderr":""}', stderr="")
+            )
+            service = ClientService(repository, config, transport)
+
+            result = service.rm("demo")
+
+            self.assertEqual("removed project demo", result.message)
+            self.assertEqual([("example.org", "demo")], transport.rm_calls)
+            self.assertIsNone(repository.get_project("demo"))
+            self.assertIsNone(repository.get_selected_project_name())
 
 
 if __name__ == "__main__":

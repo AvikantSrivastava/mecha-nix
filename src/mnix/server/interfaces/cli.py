@@ -33,11 +33,14 @@ def _build_use_cases() -> ProjectUseCases:
     )
 
 
-def _emit(runtime, exit_code: int) -> int:
-    payload = runtime.as_dict()
+def _emit_json(payload: dict[str, object], exit_code: int) -> int:
     json.dump(payload, sys.stdout)
     sys.stdout.write("\n")
     return exit_code
+
+
+def _emit(runtime, exit_code: int) -> int:
+    return _emit_json(runtime.as_dict(), exit_code)
 
 
 def _emit_error(message: str) -> int:
@@ -110,6 +113,14 @@ def project() -> None:
     pass
 
 
+@project.command("ls")
+def list_projects() -> int:
+    def action(use_cases: ProjectUseCases) -> int:
+        return _emit_json({"containers": use_cases.list_running_containers()}, 0)
+
+    return _detached_command(action)
+
+
 @project.command()
 @_project_options
 def launch(name: str, flake: str) -> int:
@@ -131,6 +142,22 @@ def rebuild_switch(name: str, flake: str) -> int:
             sys.stdin.buffer.read(),
         )
         return _emit(runtime, exit_code)
+
+    return _detached_command(action)
+
+
+@project.command()
+@click.option("--name", required=True, help="Project name.")
+def rm(name: str) -> int:
+    def action(use_cases: ProjectUseCases) -> int:
+        result = use_cases.rm(ProjectSpec(name=name, flake_relative_path=""))
+        return _emit_json(
+            {
+                "stdout": result.stdout,
+                "stderr": result.stderr,
+            },
+            result.returncode,
+        )
 
     return _detached_command(action)
 

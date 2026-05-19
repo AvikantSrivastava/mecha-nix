@@ -125,6 +125,16 @@ class ClientRepository:
             container_name=row["container_name"],
         )
 
+    def delete_project(self, name: str) -> bool:
+        with self.database.connect() as connection:
+            cursor = connection.execute("DELETE FROM projects WHERE name = ?", (name,))
+            if cursor.rowcount:
+                connection.execute(
+                    "DELETE FROM settings WHERE key = 'selected_project' AND value = ?",
+                    (name,),
+                )
+        return cursor.rowcount > 0
+
     def set_selected_project(self, name: str) -> None:
         with self.database.connect() as connection:
             connection.execute(

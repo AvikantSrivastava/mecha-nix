@@ -12,6 +12,12 @@ from mnix.server.infrastructure.workspace import WorkspaceStore
 
 
 class FakePodmanService:
+    def __init__(self) -> None:
+        self.rm_calls: list[str] = []
+
+    def list_running_containers(self):
+        return ["mnix-demo"]
+
     def ensure_container(self, project_name: str, workspace_path: Path):
         return "mnix-demo", [CommandResult(["podman"], 0, "container ready", "")]
 
@@ -23,6 +29,10 @@ class FakePodmanService:
 
     def exec(self, project_name: str, workspace_path: Path, flake_path: Path, command: list[str]):
         return CommandResult(command, 5, str(workspace_path), str(flake_path))
+
+    def rm(self, project_name: str):
+        self.rm_calls.append(project_name)
+        return CommandResult(["podman", "rm", project_name], 0, "removed", "")
 
 
 def build_payload(source_dir: Path) -> bytes:
@@ -83,6 +93,26 @@ class ProjectUseCasesTests(unittest.TestCase):
             )
 
             self.assertEqual(5, exit_code)
+
+    def test_list_running_containers_passes_through(self) -> None:
+        use_cases = ProjectUseCases(WorkspaceStore(Path("/tmp/unused")), FakePodmanService())
+
+        self.assertEqual(["mnix-demo"], use_cases.list_running_containers())
+
+    def test_rm_deletes_workspace_and_container(self) -> None:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            tmp = Path(tmpdir)
+            workspace = WorkspaceStore(tmp / "workspaces")
+            project_path = workspace.project_path("Demo")
+            project_path.mkdir(parents=True)
+            podman = FakePodmanService()
+            use_cases = ProjectUseCases(workspace, podman)
+
+            result = use_cases.rm(ProjectSpec(name="Demo", flake_relative_path=""))
+
+            self.assertEqual(0, result.returncode)
+            self.assertEqual(["Demo"], podman.rm_calls)
+            self.assertFalse(project_path.exists())
 
 
 if __name__ == "__main__":

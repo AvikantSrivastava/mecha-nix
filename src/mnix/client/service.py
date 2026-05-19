@@ -16,6 +16,13 @@ class OperationResult:
     stderr: str = ""
 
 
+@dataclass(slots=True)
+class SyncStatus:
+    server: ServerRecord
+    matched_projects: list[ProjectRecord]
+    missing_projects: list[ProjectRecord]
+
+
 class ClientService:
     def __init__(
         self, repository: ClientRepository, config: ClientConfig, transport
@@ -94,6 +101,24 @@ class ClientService:
         self.repository.set_selected_project(project.name)
         return f"selected project {project.name}"
 
+    def purge_project(self, name: str) -> str:
+        removed = self.repository.delete_project(name)
+        if not removed:
+            raise ValueError(f"unknown project: {name}")
+        return f"purged local state for project {name}"
+
+    def rm(self, project_name: str | None = None) -> OperationResult:
+        project = self.resolve_project(project_name)
+        server = self.resolve_server(project.server_name)
+        execution = self.transport.rm(server.endpoint, project.name)
+        response = self._decode_remote_response(execution, "remote remove failed")
+        self.purge_project(project.name)
+        return OperationResult(
+            message=f"removed project {project.name}",
+            stdout=response.get("stdout", ""),
+            stderr=response.get("stderr", ""),
+        )
+
     def resolve_server(self, requested_name: str | None = None) -> ServerRecord:
         if requested_name:
             server = self.repository.get_server(requested_name)
@@ -125,6 +150,46 @@ class ClientService:
         if project is None:
             raise ValueError(f"unknown project: {name}")
         return project
+
+    def _list_remote_containers(self, server: ServerRecord) -> set[str]:
+        execution = self.transport.run(server.endpoint, ["project", "ls"])
+        response = self._decode_remote_response(execution, "remote project listing failed")
+        containers = response.get("containers")
+        if not isinstance(containers, list) or not all(
+            isinstance(item, str) for item in containers
+        ):
+            raise RuntimeError(f"invalid remote response: {execution.stdout.strip()}")
+        return set(containers)
+
+    def sync_status(self, server_name: str | None = None) -> SyncStatus:
+        server = self.resolve_server(server_name)
+        projects = [
+            project
+            for project in self.repository.list_projects()
+            if project.server_name == server.name
+        ]
+        if not projects:
+            return SyncStatus(
+                server=server,
+                matched_projects=[],
+                missing_projects=[],
+            )
+
+        running_containers = self._list_remote_containers(server)
+        matched_projects: list[ProjectRecord] = []
+        missing_projects: list[ProjectRecord] = []
+
+        for project in projects:
+            if project.container_name in running_containers:
+                matched_projects.append(project)
+            else:
+                missing_projects.append(project)
+
+        return SyncStatus(
+            server=server,
+            matched_projects=matched_projects,
+            missing_projects=missing_projects,
+        )
 
     def new_project(
         self, name: str, flake_path: Path, server_name: str | None = None
