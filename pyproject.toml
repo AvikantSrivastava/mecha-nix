@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mnix"
-version = "0.1.1"
+version = "0.2.0"
 description = "Stateless client/server remote development environments powered by Nix and Podman."
 readme = "README.md"
 requires-python = ">=3.7"
