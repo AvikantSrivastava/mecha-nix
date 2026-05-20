@@ -5,7 +5,10 @@ import sys
 import traceback
 from collections.abc import Callable
 
-import rich_click as click
+if sys.version_info >= (3, 8):
+    import rich_click as click
+else:
+    import click
 
 from mnix.server.application.use_cases import ProjectUseCases
 from mnix.server.domain.entities import ProjectSpec

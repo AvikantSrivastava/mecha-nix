@@ -16,7 +16,9 @@ class WorkspaceStore:
     def project_path(self, project_name: str) -> Path:
         return self.root / slugify(project_name)
 
-    def replace_from_archive(self, project_name: str, stream, flake_relative_path: str) -> tuple[Path, Path]:
+    def replace_from_archive(
+        self, project_name: str, stream, flake_relative_path: str
+    ) -> tuple[Path, Path]:
         workspace_path = self.project_path(project_name)
         if workspace_path.exists():
             shutil.rmtree(workspace_path)
@@ -25,7 +27,9 @@ class WorkspaceStore:
             self._safe_extract(archive, workspace_path)
         flake_path = (workspace_path / flake_relative_path).resolve()
         if not flake_path.exists():
-            raise FileNotFoundError(f"flake not found in uploaded archive: {flake_relative_path}")
+            raise FileNotFoundError(
+                f"flake not found in uploaded archive: {flake_relative_path}"
+            )
         return workspace_path, flake_path
 
     def delete_project(self, project_name: str) -> bool:

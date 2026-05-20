@@ -11,7 +11,13 @@ from mnix.shared.text import slugify
 class PodmanService:
     CONTAINER_PREFIX = "mnix-"
 
-    def __init__(self, podman_binary: str, base_image: str, container_command: str, warmup_command: str) -> None:
+    def __init__(
+        self,
+        podman_binary: str,
+        base_image: str,
+        container_command: str,
+        warmup_command: str,
+    ) -> None:
         self.podman_binary = podman_binary
         self.base_image = base_image
         self.container_command = container_command
@@ -43,18 +49,21 @@ class PodmanService:
         if result.returncode != 0:
             message = result.stderr.strip() or "failed to list running containers"
             raise RuntimeError(message)
-        return [
-            name
-            for raw_name in result.stdout.splitlines()
-            if (name := raw_name.strip()).startswith(self.CONTAINER_PREFIX)
-        ]
+        container_names = []
+        for raw_name in result.stdout.splitlines():
+            name = raw_name.strip()
+            if name.startswith(self.CONTAINER_PREFIX):
+                container_names.append(name)
+        return container_names
 
     @staticmethod
     def _container_dir(workspace_path: Path, flake_path: Path) -> str:
         relative_dir = flake_path.parent.relative_to(workspace_path)
         return str(Path("/workspace") / relative_dir)
 
-    def ensure_container(self, project_name: str, workspace_path: Path) -> tuple[str, list[CommandResult]]:
+    def ensure_container(
+        self, project_name: str, workspace_path: Path
+    ) -> tuple[str, list[CommandResult]]:
         container_name = self._container_name(project_name)
         results = [
             self._run([self.podman_binary, "pull", self.base_image]),
@@ -79,12 +88,18 @@ class PodmanService:
         ]
         return container_name, results
 
-    def warmup(self, project_name: str, workspace_path: Path, flake_path: Path) -> CommandResult:
+    def warmup(
+        self, project_name: str, workspace_path: Path, flake_path: Path
+    ) -> CommandResult:
         container_name = self._container_name(project_name)
         command = f"cd {shlex.quote(self._container_dir(workspace_path, flake_path))} && {self.warmup_command}"
-        return self._run([self.podman_binary, "exec", container_name, "sh", "-lc", command])
+        return self._run(
+            [self.podman_binary, "exec", container_name, "sh", "-lc", command]
+        )
 
-    def shell(self, project_name: str, workspace_path: Path, flake_path: Path) -> CommandResult:
+    def shell(
+        self, project_name: str, workspace_path: Path, flake_path: Path
+    ) -> CommandResult:
         container_name = self._container_name(project_name)
         container_dir = self._container_dir(workspace_path, flake_path)
         return self._attach(
@@ -103,7 +118,11 @@ class PodmanService:
         )
 
     def exec(
-        self, project_name: str, workspace_path: Path, flake_path: Path, command: list[str]
+        self,
+        project_name: str,
+        workspace_path: Path,
+        flake_path: Path,
+        command: list[str],
     ) -> CommandResult:
         container_name = self._container_name(project_name)
         container_dir = self._container_dir(workspace_path, flake_path)
@@ -123,9 +142,7 @@ class PodmanService:
             ]
         )
 
-    def rm(
-        self, project_name: str
-    ) -> CommandResult:
+    def rm(self, project_name: str) -> CommandResult:
         container_name = self._container_name(project_name)
         stop_result = self._run([self.podman_binary, "stop", container_name])
         rm_result = self._run([self.podman_binary, "rm", container_name])

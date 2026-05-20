@@ -5,13 +5,13 @@ from dataclasses import dataclass
 from mnix.client.db import Database
 
 
-@dataclass(slots=True)
+@dataclass
 class ServerRecord:
     name: str
     endpoint: str
 
 
-@dataclass(slots=True)
+@dataclass
 class ProjectRecord:
     name: str
     server_name: str
@@ -30,7 +30,9 @@ class ClientRepository:
             rows = connection.execute(
                 "SELECT name, endpoint FROM servers ORDER BY name"
             ).fetchall()
-        return [ServerRecord(name=row["name"], endpoint=row["endpoint"]) for row in rows]
+        return [
+            ServerRecord(name=row["name"], endpoint=row["endpoint"]) for row in rows
+        ]
 
     def add_server(self, name: str, endpoint: str) -> None:
         with self.database.connect() as connection:

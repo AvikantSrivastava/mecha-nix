@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass(slots=True)
+@dataclass
 class ArchiveBundle:
     workspace_root: Path
     flake_relative_path: str
