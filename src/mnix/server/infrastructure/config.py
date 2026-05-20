@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,7 +10,7 @@ from mnix.shared.paths import config_dir
 DEFAULT_WORKSPACE_ROOT = Path("/tmp/mnix/workspaces")
 
 
-@dataclass(slots=True)
+@dataclass
 class ServerConfig:
     podman_binary: str = "podman"
     base_image: str = "docker.io/nixos/nix:latest"

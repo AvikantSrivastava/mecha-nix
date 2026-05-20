@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import io
 import tarfile
 from dataclasses import dataclass
 from pathlib import Path
 
 
-@dataclass(slots=True)
+@dataclass
 class ArchiveBundle:
     workspace_root: Path
     flake_relative_path: str

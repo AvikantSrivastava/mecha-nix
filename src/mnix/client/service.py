@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -7,14 +9,14 @@ from mnix.client.config import ClientConfig
 from mnix.client.repository import ClientRepository, ProjectRecord, ServerRecord
 
 
-@dataclass(slots=True)
+@dataclass
 class OperationResult:
     message: str
     stdout: str = ""
     stderr: str = ""
 
 
-@dataclass(slots=True)
+@dataclass
 class SyncStatus:
     server: ServerRecord
     matched_projects: list[ProjectRecord]

@@ -80,13 +80,9 @@ class ServerCliTests(unittest.TestCase):
         stdout = io.StringIO()
         stdin = type("Stdin", (), {"buffer": io.BytesIO(b"payload")})()
 
-        with (
-            patch(
-                "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
-            ),
-            patch.object(sys, "stdin", stdin),
-            patch.object(sys, "stdout", stdout),
-        ):
+        with patch(
+            "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
+        ), patch.object(sys, "stdin", stdin), patch.object(sys, "stdout", stdout):
             exit_code = server_cli.main(
                 [
                     "project",
@@ -114,12 +110,9 @@ class ServerCliTests(unittest.TestCase):
         use_cases = FakeUseCases()
         stdout = io.StringIO()
 
-        with (
-            patch(
-                "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
-            ),
-            patch.object(sys, "stdout", stdout),
-        ):
+        with patch(
+            "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
+        ), patch.object(sys, "stdout", stdout):
             exit_code = server_cli.main(["project", "ls"])
 
         self.assertEqual(0, exit_code)
@@ -129,12 +122,9 @@ class ServerCliTests(unittest.TestCase):
         use_cases = FakeUseCases()
         stdout = io.StringIO()
 
-        with (
-            patch(
-                "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
-            ),
-            patch.object(sys, "stdout", stdout),
-        ):
+        with patch(
+            "mnix.server.interfaces.cli._build_use_cases", return_value=use_cases
+        ), patch.object(sys, "stdout", stdout):
             exit_code = server_cli.main(["project", "rm", "--name", "demo"])
 
         self.assertEqual(0, exit_code)

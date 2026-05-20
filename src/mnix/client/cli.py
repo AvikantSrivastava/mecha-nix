@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 from typing import Callable
@@ -23,7 +25,9 @@ EXEC_SETTINGS = {
 
 
 def _normalize_endpoint(endpoint: str) -> str:
-    return endpoint.removeprefix("ssh://")
+    if endpoint.startswith("ssh://"):
+        return endpoint[len("ssh://") :]
+    return endpoint
 
 
 def _console(*, stderr: bool = False) -> Console:

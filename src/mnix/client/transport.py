@@ -1,10 +1,12 @@
+from __future__ import annotations
+
 import json
 import shlex
 import subprocess
 from dataclasses import dataclass
 
 
-@dataclass(slots=True)
+@dataclass
 class RemoteExecution:
     returncode: int
     stdout: str

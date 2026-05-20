@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,7 +10,7 @@ from mnix.shared.paths import config_dir, ensure_parent, state_dir
 DEFAULT_CLIENT_DB_PATH = state_dir() / "client.db"
 
 
-@dataclass(slots=True)
+@dataclass
 class ClientConfig:
     ssh_binary: str = "ssh"
     remote_binary: str = "mnix-server"

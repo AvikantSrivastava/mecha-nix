@@ -1,15 +1,17 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 
 from mnix.client.db import Database
 
 
-@dataclass(slots=True)
+@dataclass
 class ServerRecord:
     name: str
     endpoint: str
 
 
-@dataclass(slots=True)
+@dataclass
 class ProjectRecord:
     name: str
     server_name: str

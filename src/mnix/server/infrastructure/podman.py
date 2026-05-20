@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import shlex
 import subprocess
 from pathlib import Path
@@ -47,11 +49,12 @@ class PodmanService:
         if result.returncode != 0:
             message = result.stderr.strip() or "failed to list running containers"
             raise RuntimeError(message)
-        return [
-            name
-            for raw_name in result.stdout.splitlines()
-            if (name := raw_name.strip()).startswith(self.CONTAINER_PREFIX)
-        ]
+        container_names = []
+        for raw_name in result.stdout.splitlines():
+            name = raw_name.strip()
+            if name.startswith(self.CONTAINER_PREFIX):
+                container_names.append(name)
+        return container_names
 
     @staticmethod
     def _container_dir(workspace_path: Path, flake_path: Path) -> str:
