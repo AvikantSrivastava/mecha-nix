@@ -55,7 +55,7 @@ def _interactive_project_choice(service: ClientService) -> str:
     table.add_column("Server", style="magenta")
 
     for index, project in enumerate(projects, start=1):
-        table.add_row(str(index), project.name, project.server_name)
+        table.add_row(str(index), project.name, f"ssh://{project.server_name}")
 
     _console().print(table)
 
@@ -105,7 +105,7 @@ def _render_servers(servers: list) -> None:
     table.add_column("Endpoint", style="cyan")
 
     for item in servers:
-        table.add_row(item.name, item.endpoint)
+        table.add_row(item.name, f"ssh://{item.endpoint}")
 
     _console().print(table)
 
