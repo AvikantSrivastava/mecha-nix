@@ -12,14 +12,15 @@ CREATE TABLE IF NOT EXISTS servers (
 );
 
 CREATE TABLE IF NOT EXISTS projects (
-    name TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
     server_name TEXT NOT NULL REFERENCES servers(name) ON DELETE RESTRICT,
     local_flake_path TEXT NOT NULL,
     remote_workspace TEXT NOT NULL,
     remote_flake_path TEXT NOT NULL,
     container_name TEXT NOT NULL,
     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+    updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (name, server_name)
 );
 
 CREATE TABLE IF NOT EXISTS settings (
